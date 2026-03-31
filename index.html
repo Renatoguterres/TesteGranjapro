@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Granja Pro - Premium</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#fbbf24">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        body { background: #000; color: #fff; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .tab-btn { padding: 15px; flex: 1; text-align: center; font-weight: 800; font-size: 10px; color: #666; border-bottom: 3px solid #111; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; }
+        .tab-btn.active { color: #fbbf24; border-bottom: 3px solid #fbbf24; background: rgba(251, 191, 36, 0.05); }
+        .input-field { background: #111; border: 1px solid #222; color: #fff; padding: 14px; border-radius: 16px; width: 100%; margin-bottom: 12px; outline: none; transition: 0.2s; text-align: center; }
+        .input-field:focus { border-color: #fbbf24; background: #161616; }
+        .select-field { background: #111; border: 1px solid #333; color: #fbbf24; padding: 10px; border-radius: 12px; font-weight: 800; font-size: 11px; text-transform: uppercase; outline: none; text-align-last: center; }
+        .card-premium { background: linear-gradient(180deg, #111 0%, #050505 100%); border: 1px solid #1f2937; padding: 16px; border-radius: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); position: relative; overflow: hidden; }
+        .card-premium::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 1px; background: rgba(251, 191, 36, 0.15); }
+        .hidden { display: none !important; }
+        .btn-action { transition: transform 0.1s active; box-shadow: 0 4px 14px 0 rgba(0,0,0,0.3); border-radius: 20px; }
+        .btn-action:active { transform: scale(0.95); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .btn-egg-plus { background: #fbbf24; color: #000; font-weight: 900; padding: 10px; border-radius: 12px; font-size: 11px; text-transform: uppercase; }
+        .btn-egg-minus { background: #374151; color: #fff; font-weight: 900; padding: 10px; border-radius: 12px; font-size: 11px; text-transform: uppercase; }
+        input[type="date"] { text-align: center; display: flex; align-items: center; justify-content: center; color-scheme: dark; }
+    </style>
+</head>
+<body class="flex flex-col items-center">
+
+    <div class="w-full max-w-md min-h-screen flex flex-col">
+        
+        <header class="bg-yellow-500 py-8 px-6 text-center shadow-2xl rounded-b-[40px] mb-4 relative">
+            <h1 class="font-black text-black text-3xl tracking-tighter uppercase italic">GRANJA PRO</h1>
+            <p class="text-black text-[10px] font-bold opacity-60 mt-1 uppercase tracking-widest">Controle Profissional</p>
+            
+            <button onclick="sincronizar()" id="btnSync" class="absolute right-6 top-1/2 -translate-y-1/2 bg-black text-yellow-500 p-3 rounded-full shadow-lg active:scale-90 transition-transform flex items-center justify-center w-10 h-10">
+                <i class="fas fa-sync-alt" id="syncIcon"></i>
+            </button>
+        </header>
+
+        <div id="container-filtro" class="px-6 mb-4 flex justify-between items-center hidden">
+            <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Período:</span>
+            <select id="filtro-mes" onchange="atualizarTudo()" class="select-field flex-1 ml-4"></select>
+        </div>
+
+        <nav class="flex px-2 gap-1 mb-4 overflow-x-auto">
+            <button onclick="mudarAba('add')" id="tab-add" class="tab-btn active">Lançar</button>
+            <button onclick="mudarAba('resumo')" id="tab-resumo" class="tab-btn">Painel</button>
+            <button onclick="mudarAba('lista')" id="tab-lista" class="tab-btn">Lista</button>
+            <button onclick="mudarAba('grafico')" id="tab-grafico" class="tab-btn">Gráfico</button>
+            <button onclick="mudarAba('backup')" id="tab-backup" class="tab-btn">Backup</button>
+        </nav>
+
+        <main class="flex-1 px-6 pb-24 overflow-y-auto">
+            <section id="content-add" class="space-y-4 text-center animate-fade-in">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Data</label>
+                    <input type="date" id="input-data" class="input-field italic font-bold">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Descrição</label>
+                    <input type="text" id="input-desc" placeholder="Ex: Ração, Pintinhos..." class="input-field">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Valor R$</label>
+                    <input type="number" id="input-valor" placeholder="0,00" step="0.01" class="input-field text-2xl font-black text-yellow-500">
+                </div>
+                <div class="grid grid-cols-1 gap-4 pt-4">
+                    <button onclick="salvar('receita')" class="btn-action bg-green-500 text-black py-5 font-black text-base uppercase italic">Registrar Venda (+)</button>
+                    <button onclick="salvar('despesa')" class="btn-action bg-red-500 text-black py-5 font-black text-base uppercase italic">Registrar Gasto (-)</button>
+                </div>
+            </section>
+
+            <section id="content-resumo" class="hidden space-y-4 animate-fade-in">
+                <div class="card-premium text-center py-8">
+                    <small class="text-gray-500 font-black text-[10px] uppercase tracking-[0.3em]">Saldo Líquido</small>
+                    <div id="saldo-final" class="text-4xl font-black mt-2 tracking-tighter">R$ 0,00</div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="card-premium text-center py-6 border-red-900/30">
+                        <small class="text-red-500 font-black text-[9px] uppercase tracking-widest">Gastos</small>
+                        <div id="total-gastos" class="text-lg font-black mt-1">R$ 0,00</div>
+                    </div>
+                    <div class="card-premium text-center py-6 border-green-900/30">
+                        <small class="text-green-500 font-black text-[9px] uppercase tracking-widest">Entradas</small>
+                        <div id="total-vendas" class="text-lg font-black mt-1">R$ 0,00</div>
+                    </div>
+                </div>
+                <div class="card-premium p-6 border-yellow-500/30">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <small class="text-yellow-500 font-black text-[10px] uppercase tracking-widest">Produção Acumulada</small>
+                            <div id="display-total-ovos" class="text-3xl font-black text-white mt-1">0 Ovos</div>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <input type="number" id="input-nova-coleta" placeholder="Qtd" class="w-full bg-black border border-gray-700 rounded-lg text-sm p-2 text-center text-yellow-500 font-bold outline-none">
+                            <div class="flex gap-1">
+                                <button onclick="gerenciarOvos('somar')" class="btn-egg-plus flex-1">Lançar</button>
+                                <button onclick="gerenciarOvos('subtrair')" class="btn-egg-minus flex-1">Retirar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center justify-center border-t border-gray-800 pt-6">
+                        <small class="text-gray-500 font-black text-[9px] uppercase tracking-widest mb-2 italic">Custo Unitário no Período</small>
+                        <div class="flex items-baseline gap-2">
+                            <span id="custo-unitario" class="text-4xl font-black text-white tracking-tighter">R$ 0,00</span>
+                            <span class="text-[10px] text-gray-500 font-bold uppercase">/ un</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="content-lista" class="hidden animate-fade-in"><div id="lista-itens" class="space-y-3"></div></section>
+            
+            <section id="content-grafico" class="hidden animate-fade-in">
+                <div class="card-premium h-[400px] flex flex-col items-center justify-center border-gray-800">
+                    <canvas id="meuGrafico"></canvas>
+                </div>
+            </section>
+
+            <section id="content-backup" class="hidden space-y-6 animate-fade-in">
+                <div class="card-premium p-6 text-center space-y-6">
+                    <i class="fas fa-database text-yellow-500 text-4xl"></i>
+                    <h2 class="font-black text-xl uppercase italic">Gestão de Dados</h2>
+                    <button onclick="exportarParaExcel()" class="btn-action bg-white text-black w-full py-4 font-black uppercase text-sm flex items-center justify-center gap-3"><i class="fas fa-file-export"></i> Baixar Relatório</button>
+                    <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls" onchange="importarDeExcel(event)">
+                    <button onclick="document.getElementById('importFile').click()" class="btn-action border-2 border-yellow-500 text-yellow-500 w-full py-4 font-black uppercase text-sm flex items-center justify-center gap-3"><i class="fas fa-file-import"></i> Carregar Backup</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbwqd6K7nn8CBpE3VQMVojPnd17otUFq4Hm91yPAYaMORmxF2L8EaXd3iab8ssoe7BLh/exec";
+        let registros = JSON.parse(localStorage.getItem('granja_pro_v14')) || [];
+        let chart = null;
+        const NOMES_MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+        // REGISTRO SEGURO DO SERVICE WORKER
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log("SW registrado com sucesso!"))
+                    .catch(err => console.log("Erro ao registrar SW:", err));
+            });
+        }
+
+        window.onload = () => {
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('input-data').value = hoje;
+            gerarOpcoesFiltro();
+            atualizarTudo();
+        };
+
+        async function sincronizar() {
+            const icon = document.getElementById('syncIcon');
+            icon.classList.add('fa-spin');
+            try {
+                const response = await fetch(GOOGLE_API_URL);
+                const planilha = await response.json();
+                registros = planilha.filter(reg => reg.tipo !== "EXCLUIR" && reg.desc).map(reg => ({
+                    ...reg, valor: parseFloat(reg.valor || 0), ts: new Date(reg.data + "T12:00:00").getTime()
+                }));
+                localStorage.setItem('granja_pro_v14', JSON.stringify(registros));
+                gerarOpcoesFiltro();
+                atualizarTudo();
+                alert("Nuvem atualizada!");
+            } catch (e) { alert("Erro de conexão"); }
+            finally { icon.classList.remove('fa-spin'); }
+        }
+
+        function salvar(tipo) {
+            const dataInput = document.getElementById("input-data").value, 
+                  desc = document.getElementById("input-desc").value, 
+                  valor = parseFloat(document.getElementById("input-valor").value);
+            
+            if (!dataInput || !desc || isNaN(valor)) return alert("Preencha tudo!");
+            
+            const novoItem = { id: Date.now(), data: dataInput, desc, valor, tipo, ts: new Date(dataInput + "T12:00:00").getTime() };
+            registros.unshift(novoItem);
+            localStorage.setItem('granja_pro_v14', JSON.stringify(registros));
+            
+            // Envio silencioso para a planilha
+            fetch(GOOGLE_API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(novoItem) });
+            
+            document.getElementById("input-desc").value = ""; 
+            document.getElementById("input-valor").value = "";
+            atualizarTudo();
+            mudarAba('resumo');
+        }
+
+        function gerenciarOvos(acao) {
+            const dataInput = document.getElementById("input-data").value;
+            const qtd = parseInt(document.getElementById("input-nova-coleta").value) || 0;
+            if (qtd <= 0) return;
+            const novoItem = { id: Date.now(), data: dataInput, desc: acao === 'somar' ? "Coleta" : "Saída", valor: acao === 'somar' ? qtd : -qtd, tipo: "OVOS", ts: new Date(dataInput + "T12:00:00").getTime() };
+            registros.unshift(novoItem);
+            localStorage.setItem('granja_pro_v14', JSON.stringify(registros));
+            fetch(GOOGLE_API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(novoItem) });
+            document.getElementById("input-nova-coleta").value = "";
+            atualizarTudo();
+        }
+
+        function atualizarTudo() {
+            let v = 0, g = 0, ovos = 0;
+            const filtro = document.getElementById("filtro-mes").value;
+            const filtrados = filtro === "todos" ? registros : registros.filter(r => r.data && r.data.startsWith(filtro));
+            const lista = document.getElementById("lista-itens");
+            lista.innerHTML = "";
+            
+            filtrados.sort((a,b) => b.ts - a.ts).forEach(r => {
+                if (r.tipo === "receita") v += (r.valor || 0);
+                else if (r.tipo === "despesa") g += (r.valor || 0);
+                else if (r.tipo === "OVOS") ovos += (r.valor || 0);
+                
+                if (r.tipo !== "OVOS") {
+                    const item = document.createElement("div");
+                    item.className = "card-premium flex justify-between items-center mb-3 animate-fade-in";
+                    item.innerHTML = `<div><div class="font-bold text-gray-200 text-sm capitalize">${r.desc}</div><div class="text-[9px] text-gray-600 font-bold">${r.data.split('-').reverse().join('/')}</div></div><div class="flex items-center gap-4"><span class="font-black ${r.tipo === 'receita' ? 'text-green-500' : 'text-red-500'} text-sm">R$ ${parseFloat(r.valor).toFixed(2)}</span><button onclick="excluir(${r.id})" class="text-zinc-800 p-2">✕</button></div>`;
+                    lista.appendChild(item);
+                }
+            });
+            
+            document.getElementById("total-gastos").innerText = "R$ " + g.toFixed(2);
+            document.getElementById("total-vendas").innerText = "R$ " + v.toFixed(2);
+            const saldo = v - g;
+            document.getElementById("saldo-final").innerText = "R$ " + saldo.toFixed(2);
+            document.getElementById("saldo-final").style.color = saldo >= 0 ? "#10b981" : "#ef4444";
+            document.getElementById("display-total-ovos").innerText = `${ovos} Ovos`;
+            document.getElementById("custo-unitario").innerText = "R$ " + (ovos > 0 ? (g / ovos) : 0).toFixed(2);
+        }
+
+        function mudarAba(aba) {
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('content-' + aba).classList.remove('hidden');
+            document.getElementById('tab-' + aba).classList.add('active');
+            
+            const f = document.getElementById('container-filtro');
+            (aba === 'add' || aba === 'backup') ? f.classList.add('hidden') : f.classList.remove('hidden');
+            
+            if (aba === 'grafico') {
+                // Pequeno delay para garantir que o elemento canvas está visível antes de desenhar
+                setTimeout(desenharGrafico, 150);
+            }
+            atualizarTudo();
+        }
+
+        function excluir(id) {
+            if(confirm("Deseja excluir este registro?")) {
+                registros = registros.filter(r => r.id !== id);
+                localStorage.setItem('granja_pro_v14', JSON.stringify(registros));
+                fetch(GOOGLE_API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ tipo: "EXCLUIR", id: id }) });
+                atualizarTudo();
+            }
+        }
+
+        function gerarOpcoesFiltro() {
+            const select = document.getElementById("filtro-mes");
+            const periodos = new Set();
+            registros.forEach(r => { if(r.data) periodos.add(r.data.substring(0, 7)) });
+            const lista = Array.from(periodos).sort().reverse();
+            let html = '<option value="todos">TUDO</option>';
+            lista.forEach(p => {
+                const parts = p.split('-');
+                html += `<option value="${p}">${NOMES_MESES[parseInt(parts[1])-1]} / ${parts[0]}</option>`;
+            });
+            select.innerHTML = html;
+        }
+
+        function desenharGrafico() {
+            const canvas = document.getElementById('meuGrafico');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            // IMPORTANTE: Destruir o gráfico anterior para evitar vazamento de memória e travamentos
+            if (chart) {
+                chart.destroy();
+            }
+
+            let v = 0, g = 0;
+            const filtro = document.getElementById("filtro-mes").value;
+            const filtrados = filtro === "todos" ? registros : registros.filter(r => r.data && r.data.startsWith(filtro));
+            filtrados.forEach(r => { if(r.tipo==='receita') v+=r.valor; if(r.tipo==='despesa') g+=r.valor; });
+            
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Vendas', 'Gastos'],
+                    datasets: [{ data: [v, g], backgroundColor: ['#10b981', '#ef4444'], borderWidth: 0 }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#fff', font: { size: 10 } } } } 
+                }
+            });
+        }
+
+        function exportarParaExcel() {
+            const ws = XLSX.utils.json_to_sheet(registros), wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Dados");
+            XLSX.writeFile(wb, "Backup_Granja.xlsx");
+        }
+    </script>
+</body>
+</html>
